@@ -7,7 +7,7 @@ use rand::{rngs::OsRng, RngCore};
 use std::{
     env,
     fs::{metadata, remove_file, File},
-    io::{Read, Write},
+    io::{stdin, Read, Write},
 };
 use walkdir::WalkDir;
 use zeroize::Zeroize;
@@ -22,27 +22,44 @@ fn main() -> Result<(), anyhow::Error> {
         file = args[1].clone();
     }
 
-    let mut password = rpassword::prompt_password("Password: ")?;
-    let confirm = rpassword::prompt_password("Confirm: ")?;
-
-    if password != confirm {
-        panic!("Password did not match");
-    }
-
     let md = metadata(file.clone()).unwrap();
     if md.is_dir() {
-        let walker = WalkDir::new(file).into_iter().filter_map(|e| e.ok());
-        for entry in walker {
-            let md = entry.path().metadata().unwrap();
-            if md.is_file() {
-                let _ = run_encrypt_decrypt(entry.path().to_str().unwrap(), &password);
+        println!("You are about to encrypt a directory.\nThis will encrypt all files within {}, as well as all files in subdirectories. Continue? (y/N)", &file);
+        let mut user_confirm = String::new();
+        let _ = stdin().read_line(&mut user_confirm).unwrap();
+
+        if user_confirm.to_lowercase() == "y\n" {
+            let mut password = rpassword::prompt_password("Password: ")?;
+            let mut confirm = rpassword::prompt_password("Confirm: ")?;
+
+            if password != confirm {
+                panic!("Password did not match");
+            }
+
+            confirm.zeroize();
+
+            let walker = WalkDir::new(file).into_iter().filter_map(|e| e.ok());
+            for entry in walker {
+                let md = entry.path().metadata().unwrap();
+                if md.is_file() {
+                    let _ = run_encrypt_decrypt(entry.path().to_str().unwrap(), &password);
+                    password.zeroize();
+                }
             }
         }
     } else {
-        let _ = run_encrypt_decrypt(&file, &password);
-    }
+        let mut password = rpassword::prompt_password("Password: ")?;
+        let mut confirm = rpassword::prompt_password("Confirm: ")?;
 
-    password.zeroize();
+        if password != confirm {
+            panic!("Password did not match");
+        }
+
+        confirm.zeroize();
+
+        let _ = run_encrypt_decrypt(&file, &password);
+        password.zeroize();
+    }
 
     Ok(())
 }
