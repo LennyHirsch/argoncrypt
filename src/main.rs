@@ -43,9 +43,9 @@ fn main() -> Result<(), anyhow::Error> {
                 let md = entry.path().metadata().unwrap();
                 if md.is_file() {
                     let _ = run_encrypt_decrypt(entry.path().to_str().unwrap(), &password);
-                    password.zeroize();
                 }
             }
+            password.zeroize();
         }
     } else {
         let mut password = rpassword::prompt_password("Password: ")?;
