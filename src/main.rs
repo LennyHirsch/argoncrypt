@@ -36,6 +36,26 @@ fn main() -> Result<(), anyhow::Error> {
         _ => opts.file = arg.to_string(),
     });
 
+    if opts.help {
+        println!("
+            --- ARGONCRYPT ---
+            Argoncrypt encrypts/decrypts specified files, or files in a specified directory using Argon2id and XChaCha20Poly1305.
+            ---\n
+            USAGE:
+            argoncrypt [PATH] [OPTIONS] 
+            If no PATH is specified, argoncrypt works in the current working directory.
+            ---\n
+            OPTIONS:
+            -r: recursive; argoncrypt will encrypt/decrypt all files in the specified directory, and all files in subdirectories.
+            -d: delete original; argoncrypt will delete original files after encryption/decryption. Use with care!
+            -h: help; show this help page.
+            ---\n
+            Use at your own peril; I am not a cryptography expert, and I just wrote this thing to learn. Default config with no flags should be relatively safe.
+        ");
+
+        return Ok(());
+    }
+
     let md = metadata(opts.file.clone()).unwrap();
     if md.is_dir() {
         let mut password = String::new();
