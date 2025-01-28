@@ -16,9 +16,9 @@ Replace `<path>` with a filepath or directory.
 
 - If a filepath is specified, that file will be encrypted. Encrypted files have the suffix `.encrypted` appended to them.
 
-- If a directory is specified, `argoncrypt` will encrypt each file inside the specified directory, *including any files in subdirectories!*
+- If a directory is specified, `argoncrypt` will encrypt each file inside the specified directory.
 
-- If no arguments are given, `argoncrypt` will run in the current working directory (i.e., `./`). Again, *any files in subdirectories will also be encrypted!*
+- If no arguments are given, `argoncrypt` will run in the current working directory (i.e., `./`).
 
 To decrypt files/directories, simply run `argoncrypt` again. Any files that have a `.encrypted` suffix will be decrypted.
 
@@ -26,7 +26,7 @@ To decrypt files/directories, simply run `argoncrypt` again. Any files that have
 
 - `-r`: recursive. With this flag enabled, `argoncrypt` will work through the specified directory as well as any subdirectories.
 
-- `-d`: delete old. With this flag enabled, old files will be deleted. If you are encrypting, the unencrypted files will be deleted. If you are decrypting, the encrypted files will be deleted. USE WITH CARE!!!
+- `-d`: delete old. With this flag enabled, original files will be deleted. Good for practical use, but I have kept this as an optional flag to reduce the chance of accidental data loss. USE WITH CARE!!!
 
 > [!WARNING]
 > Make sure you remember the password used for encryption. If the `-d` flag is enabled, original files will be deleted!
