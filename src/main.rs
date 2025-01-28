@@ -12,68 +12,113 @@ use std::{
 use walkdir::WalkDir;
 use zeroize::Zeroize;
 
+struct Opts {
+    recursive: bool,
+    delete_old: bool,
+    help: bool,
+    file: String,
+}
+
 fn main() -> Result<(), anyhow::Error> {
-    let mut file = String::new();
+    let mut opts = Opts {
+        recursive: false,
+        delete_old: false,
+        help: false,
+        file: ".".to_string(),
+    };
 
     let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        file = ".".to_string();
+    if args.len() < 2 {
+        opts.file = ".".to_string();
     } else {
-        file = args[1].clone();
+        args.iter().for_each(|arg| match arg.as_str() {
+            "-r" => opts.recursive = true,
+            "-d" => opts.delete_old = true,
+            "-h" => opts.help = true,
+            _ => opts.file = arg.to_string(),
+        });
+        //file = args[1].clone();
     }
 
-    let md = metadata(file.clone()).unwrap();
+    let md = metadata(opts.file.clone()).unwrap();
     if md.is_dir() {
-        println!("You are about to encrypt a directory.\nThis will encrypt all files within {}, as well as all files in subdirectories. Continue? (y/N)", &file);
+        let mut password = String::new();
         let mut user_confirm = String::new();
-        let _ = stdin().read_line(&mut user_confirm).unwrap();
 
-        if user_confirm.to_lowercase() == "y\n" {
-            let mut password = rpassword::prompt_password("Password: ")?;
-            let mut confirm = rpassword::prompt_password("Confirm: ")?;
-
-            if password != confirm {
-                panic!("Password did not match");
-            }
-
-            confirm.zeroize();
-
-            let walker = WalkDir::new(file).into_iter().filter_map(|e| e.ok());
-            for entry in walker {
-                let md = entry.path().metadata().unwrap();
-                if md.is_file() {
-                    let _ = run_encrypt_decrypt(entry.path().to_str().unwrap(), &password);
+        if opts.recursive {
+            println!("You are about to work recursively on a directory.\nThis will affect all files within {}, as well as files in subdirectories. Continue? (y/N)", opts.file);
+            let _ = stdin().read_line(&mut user_confirm).unwrap();
+            if user_confirm.to_lowercase() == "y\n" {
+                password = get_password()?;
+                let walker = WalkDir::new(&opts.file).into_iter().filter_map(|e| e.ok());
+                for entry in walker {
+                    let md = entry.path().metadata().unwrap();
+                    if md.is_file() {
+                        let _ = run_encrypt_decrypt(
+                            entry.path().to_str().unwrap(),
+                            &password,
+                            opts.delete_old,
+                        );
+                    }
                 }
             }
-            password.zeroize();
+        } else {
+            println!("You are about to work on a directory.\nThis will affect all files within {}. Continue? (y/N)", opts.file);
+            let _ = stdin().read_line(&mut user_confirm).unwrap();
+            if user_confirm.to_lowercase() == "y\n" {
+                password = get_password()?;
+                let walker = WalkDir::new(&opts.file)
+                    .max_depth(1)
+                    .into_iter()
+                    .filter_map(|e| e.ok());
+                for entry in walker {
+                    let md = entry.path().metadata().unwrap();
+                    if md.is_file() {
+                        let _ = run_encrypt_decrypt(
+                            entry.path().to_str().unwrap(),
+                            &password,
+                            opts.delete_old,
+                        );
+                    }
+                }
+            }
         }
+        password.zeroize();
     } else {
-        let mut password = rpassword::prompt_password("Password: ")?;
-        let mut confirm = rpassword::prompt_password("Confirm: ")?;
-
-        if password != confirm {
-            panic!("Password did not match");
-        }
-
-        confirm.zeroize();
-
-        let _ = run_encrypt_decrypt(&file, &password);
+        let mut password = get_password()?;
+        let _ = run_encrypt_decrypt(&opts.file, &password, opts.delete_old);
         password.zeroize();
     }
 
     Ok(())
 }
 
-fn run_encrypt_decrypt(source_file_path: &str, password: &str) -> Result<(), anyhow::Error> {
+fn get_password() -> Result<String, anyhow::Error> {
+    let password = rpassword::prompt_password("Password: ")?;
+    let mut confirm = rpassword::prompt_password("Confirm: ")?;
+
+    if password != confirm {
+        panic!("Password did not match");
+    }
+
+    confirm.zeroize();
+    Ok(password)
+}
+
+fn run_encrypt_decrypt(
+    source_file_path: &str,
+    password: &str,
+    delete_old: bool,
+) -> Result<(), anyhow::Error> {
     if source_file_path.ends_with(".encrypted") {
         let dist = source_file_path
             .strip_suffix(".encrypted")
             .unwrap()
             .to_string();
-        decrypt_file(&source_file_path, &dist, &password)?;
+        decrypt_file(&source_file_path, &dist, &password, delete_old)?;
     } else {
         let dist = source_file_path.to_owned() + ".encrypted";
-        encrypt_file(&source_file_path, &dist, &password)?;
+        encrypt_file(&source_file_path, &dist, &password, delete_old)?;
     }
 
     Ok(())
@@ -83,6 +128,7 @@ fn encrypt_file(
     source_file_path: &str,
     dist_file_path: &str,
     password: &str,
+    delete_old: bool,
 ) -> Result<(), anyhow::Error> {
     let argon2_config = argon2_config();
     let mut salt = [0u8; 32];
@@ -116,7 +162,10 @@ fn encrypt_file(
                 .encrypt_last(&buffer[..read_count])
                 .map_err(|err| anyhow!("Encrypting large file: {}", err))?;
             dist_file.write(&ciphertext)?;
-            remove_file(source_file_path)?;
+            println!("Encrypted {}", source_file_path);
+            if delete_old {
+                remove_file(source_file_path)?;
+            }
             break;
         }
     }
@@ -132,6 +181,7 @@ fn decrypt_file(
     encrypted_file_path: &str,
     dist: &str,
     password: &str,
+    delete_old: bool,
 ) -> Result<(), anyhow::Error> {
     let mut salt = [0u8; 32];
     let mut nonce = [0u8; 19];
@@ -174,7 +224,10 @@ fn decrypt_file(
                 .decrypt_last(&buffer[..read_count])
                 .map_err(|err| anyhow!("Decrypting large file: {}", err))?;
             dist_file.write(&plaintext)?;
-            remove_file(encrypted_file_path)?;
+            println!("Decrypted {}", encrypted_file_path);
+            if delete_old {
+                remove_file(encrypted_file_path)?;
+            }
             break;
         }
     }
