@@ -24,21 +24,17 @@ fn main() -> Result<(), anyhow::Error> {
         recursive: false,
         delete_old: false,
         help: false,
-        file: ".".to_string(),
+        file: "./".to_string(),
     };
 
     let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        opts.file = ".".to_string();
-    } else {
-        args.iter().for_each(|arg| match arg.as_str() {
-            "-r" => opts.recursive = true,
-            "-d" => opts.delete_old = true,
-            "-h" => opts.help = true,
-            _ => opts.file = arg.to_string(),
-        });
-        //file = args[1].clone();
-    }
+    args.iter().for_each(|arg| match arg.as_str() {
+        "argoncrypt" => {}
+        "-r" => opts.recursive = true,
+        "-d" => opts.delete_old = true,
+        "-h" => opts.help = true,
+        _ => opts.file = arg.to_string(),
+    });
 
     let md = metadata(opts.file.clone()).unwrap();
     if md.is_dir() {
