@@ -22,10 +22,16 @@ Replace `<path>` with a filepath or directory.
 
 To decrypt files/directories, simply run `argoncrypt` again. Any files that have a `.encrypted` suffix will be decrypted.
 
+## Optional flags
+
+- `-r`: recursive. With this flag enabled, `argoncrypt` will work through the specified directory as well as any subdirectories.
+
+- `-d`: delete old. With this flag enabled, old files will be deleted. If you are encrypting, the unencrypted files will be deleted. If you are decrypting, the encrypted files will be deleted. USE WITH CARE!!!
+
 > [!WARNING]
-> `argoncrypt` deletes the unencrypted version of a file after encryption. Make sure you remember the password used for encryption.
+> Make sure you remember the password used for encryption. If the `-d` flag is enabled, original files will be deleted!
 >
-> Use this tool at your own peril, I am not responsible for any data loss!
+> Use this tool at your own peril, I am not responsible for any data loss! This code has not been audited, and I am by no means an expert in cryptography.
 
 ## Other stuff
 
